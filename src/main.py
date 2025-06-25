@@ -7,9 +7,14 @@ from bs4 import BeautifulSoup
 from tqdm import tqdm
 
 from configs import configure_argument_parser, configure_logging
-from constants import BASE_DIR, MAIN_DOC_URL, MAIN_PEP_URL, EXPECTED_STATUS
+from constants import (
+    BASE_DIR,
+    MAIN_DOC_URL,
+    MAIN_PEP_URL,
+    EXPECTED_STATUS
+)
 from outputs import control_output
-from utils import find_tag, get_response, pep_links
+from utils import find_tag, get_response
 
 
 def whats_new(session):
@@ -24,7 +29,7 @@ def whats_new(session):
         main_div, 'div', attrs={'class': 'toctree-wrapper'})
     sections_by_python = div_with_ul.find_all(
         'li', attrs={'class': 'toctree-l1'})
-    results = [('Ссылка на статью', 'Заголовок', 'Редактор, Автор')]
+    results = [('Ссылка на статью', 'Заголовок', 'Редактор, автор')]
 
     for section in tqdm(sections_by_python):
         version_a_tag = find_tag(section, 'a')
@@ -92,39 +97,51 @@ def download(session):
 
 
 def pep(session):
-    response = get_response(session, MAIN_PEP_URL)
+    numerical_url = urljoin(MAIN_PEP_URL, 'numerical')
+    response = get_response(session, numerical_url)
     if response is None:
         return
-    soup = BeautifulSoup(response.text, 'lxml')
-    pep_categories = find_tag(
-        soup,
-        'section',
-        attrs={'id': 'index-by-category'}
-        )
-    results, total_count = pep_links(pep_categories)
-    status_data = {}
+    soup = BeautifulSoup(response.text, features='lxml')
+    num_index = find_tag(soup, 'section', {'id': 'numerical-index'})
+    tbody = find_tag(num_index, 'tbody')
+    peps_rows = tbody.find_all('tr')
+    count_pep = len(peps_rows)
+    rows_in_table = {'Status': 'Count'}
 
-    for page in tqdm(results, desc='Парсинг PEP:'):
-        page_response = get_response(session, page)
-        if page_response is None:
-            return
-        page_soup = BeautifulSoup(page_response.text, 'lxml')
-        dl_tag = find_tag(page_soup, 'dl')
-        status = find_tag(dl_tag, 'dd', attrs={'class': 'field-even'})
-        if status:
-            status_text = status.text.strip()
-            for key, values in EXPECTED_STATUS.items():
-                if status_text in values:
-                    if values[0] not in status_data:
-                        status_data[values[0]] = 0
-                    status_data[values[0]] += 1
-                    break
-    status_data['Total'] = total_count
+    warnings = []
+    for pep_row in tqdm(peps_rows, desc='Парсинг PEP:'):
+        status_in_table = find_tag(pep_row, 'abbr').text[1:]
+        url_tag = find_tag(pep_row, 'a', {'class': 'pep reference internal'})
+        pep_url = urljoin(MAIN_PEP_URL, url_tag['href'])
+        response = get_response(session, pep_url)
+        soup = BeautifulSoup(response.text, features='lxml')
+        status_tag = soup.find(text='Status').parent
+        status = status_tag.next_sibling.next_sibling.text
+        expected_status = EXPECTED_STATUS[status_in_table]
+        if status not in expected_status:
+            warnings.append(
+                {
+                    'url': pep_url,
+                    'real_status': status,
+                    'expected_statuses': expected_status
+                    }
+                )
+            continue
+        rows_in_table.setdefault(status, 0)
+        rows_in_table[status] += 1
 
-    table = [['Статус', 'Количество']]
-    table.extend(status_data.items())
-
-    return table
+    if warnings:
+        error_messages = [
+            f'Несовпадающие статусы:\n'
+            f'URL: {warning['url']}\n'
+            f'Статус на странице: {warning['real_status']}\n'
+            f'Ожидаемые статусы: {warning['expected_statuses']}'
+            for warning in warnings
+        ]
+        logging.warning('\n\n'.join(error_messages))
+    rows_in_table['Total'] = count_pep
+    results = list(rows_in_table.items())
+    return results
 
 
 MODE_TO_FUNCTION = {

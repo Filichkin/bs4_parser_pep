@@ -1,9 +1,7 @@
 import logging
-from urllib.parse import urljoin
 
 from requests import RequestException
 
-from constants import MAIN_PEP_URL
 from exceptions import ParserFindTagException
 
 
@@ -26,19 +24,3 @@ def find_tag(soup, tag, attrs=None):
         logging.error(error_msg, stack_info=True)
         raise ParserFindTagException(error_msg)
     return searched_tag
-
-
-def pep_links(category):
-
-    total_count = 0
-    results = []
-    for table in category.find_all('table'):
-        for rows in table.find_all('tr')[1:]:
-            a_href = find_tag(rows, 'a')
-            if a_href:
-                href = a_href.get('href')
-                full_url = urljoin(MAIN_PEP_URL, href)
-                results.append(full_url)
-                total_count += 1
-
-    return results, total_count
