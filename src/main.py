@@ -140,12 +140,12 @@ def pep(session):
 
     if warnings:
         error_messages = [
-            f'Несовпадающие статусы:\n'
-            f'URL: {warning['url']}\n'
-            f'Статус на странице: {warning['real_status']}\n'
-            f'Ожидаемые статусы: {warning['expected_statuses']}'
+            f"Несовпадающие статусы:\n"
+            f"URL: {warning['url']}\n"
+            f"Статус на странице: {warning['real_status']}\n"
+            f"Ожидаемые статусы: {warning['expected_statuses']}"
             for warning in warnings
-        ]
+            ]
         logging.warning('\n\n'.join(error_messages))
     rows_in_table['Total'] = count_pep
     results = list(rows_in_table.items())
