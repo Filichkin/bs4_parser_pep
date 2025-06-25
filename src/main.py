@@ -102,7 +102,11 @@ def pep(session):
     if response is None:
         return
     soup = BeautifulSoup(response.text, features='lxml')
-    num_index = find_tag(soup, 'section', {'id': 'numerical-index'})
+    num_index = find_tag(
+        soup,
+        'section',
+        {'id': 'numerical-index'}
+    )
     tbody = find_tag(num_index, 'tbody')
     peps_rows = tbody.find_all('tr')
     count_pep = len(peps_rows)
@@ -111,7 +115,11 @@ def pep(session):
     warnings = []
     for pep_row in tqdm(peps_rows, desc='Парсинг PEP:'):
         status_in_table = find_tag(pep_row, 'abbr').text[1:]
-        url_tag = find_tag(pep_row, 'a', {'class': 'pep reference internal'})
+        url_tag = find_tag(
+            pep_row,
+            'a',
+            {'class': 'pep reference internal'}
+        )
         pep_url = urljoin(MAIN_PEP_URL, url_tag['href'])
         response = get_response(session, pep_url)
         soup = BeautifulSoup(response.text, features='lxml')
