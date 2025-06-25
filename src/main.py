@@ -9,7 +9,7 @@ from tqdm import tqdm
 from configs import configure_argument_parser, configure_logging
 from constants import BASE_DIR, MAIN_DOC_URL, MAIN_PEP_URL, EXPECTED_STATUS
 from outputs import control_output
-from utils import get_response, find_tag
+from utils import find_tag, get_response, pep_links
 
 
 def whats_new(session):
@@ -91,10 +91,55 @@ def download(session):
     logging.info(f'Архив был загружен и сохранён: {archive_path}')
 
 
+def pep(session):
+    response = get_response(session, MAIN_PEP_URL)
+    if response is None:
+        return
+    soup = BeautifulSoup(response.text, 'lxml')
+    pep_categories = find_tag(
+        soup,
+        'section',
+        attrs={'id': 'index-by-category'}
+        )
+    results, total_count = pep_links(pep_categories)
+    status_data = {}
+
+    for page in tqdm(results, desc='Парсинг PEP:'):
+        page_response = get_response(session, page)
+        if page_response is None:
+            return
+        page_soup = BeautifulSoup(page_response.text, 'lxml')
+        dl_tag = find_tag(page_soup, 'dl')
+        status = find_tag(dl_tag, 'dd', attrs={'class': 'field-even'})
+        if status:
+            status_text = status.text.strip()
+            for key, values in EXPECTED_STATUS.items():
+                if status_text in values:
+                    if values[0] not in status_data:
+                        status_data[values[0]] = 0
+                    status_data[values[0]] += 1
+                    break
+    status_data['Total'] = total_count
+
+    table = [['Статус', 'Количество']]
+    table.extend(status_data.items())
+
+    return table
+
+
 MODE_TO_FUNCTION = {
     'whats-new': whats_new,
     'latest-versions': latest_versions,
     'download': download,
+    'pep': pep
+}
+
+
+MODE_TO_FUNCTION = {
+    'whats-new': whats_new,
+    'latest-versions': latest_versions,
+    'download': download,
+    'pep': pep
 }
 
 
