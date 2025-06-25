@@ -7,7 +7,7 @@ from bs4 import BeautifulSoup
 from tqdm import tqdm
 
 from configs import configure_argument_parser, configure_logging
-from constants import BASE_DIR, MAIN_DOC_URL, PEPS_URL, EXPECTED_STATUS
+from constants import BASE_DIR, MAIN_DOC_URL, MAIN_PEP_URL, EXPECTED_STATUS
 from outputs import control_output
 from utils import get_response, find_tag
 
@@ -91,52 +91,10 @@ def download(session):
     logging.info(f'Архив был загружен и сохранён: {archive_path}')
 
 
-def pep(session):
-    response = get_response(session, PEPS_URL)
-    if response is None:
-        return
-    soup = BeautifulSoup(response.text, 'lxml')
-    section_tag = find_tag(soup, 'section', attrs={'id': 'numerical-index'})
-    tbody_tag = find_tag(section_tag, 'tbody')
-    tr_tags = tbody_tag.find_all('tr')
-
-    results = [('Статус', 'Количество')]
-    status_sum = {}
-
-    for tr_tag in tqdm(tr_tags):
-        td_tag = find_tag(tr_tag, 'td')
-        preview_status = td_tag.text[1:]
-        a_tag = find_tag(tr_tag, 'a')
-        href = a_tag['href']
-
-        pep_url = urljoin(PEPS_URL, href)
-        response = get_response(session, pep_url)
-        if response is None:
-            continue
-        soup = BeautifulSoup(response.text, 'lxml')
-        dt_tags = soup.find_all('dt')
-        for dt_tag in dt_tags:
-            if dt_tag.text == 'Status:':
-                status = dt_tag.find_next_sibling().text
-                status_sum[status] = status_sum.get(status, 0) + 1
-                if status not in EXPECTED_STATUS[preview_status]:
-                    logs = (
-                        'Несовпадающие статусы:',
-                        f'{pep_url}',
-                        f'Статус в карточке {status}',
-                        f'Ожидаемые статусы: {EXPECTED_STATUS[preview_status]}'
-                    )
-    logging.warning('\n'.join(logs))
-    results.extend(status_sum.items())
-    results.append(('Total', sum(status_sum.values())))
-    return results
-
-
 MODE_TO_FUNCTION = {
     'whats-new': whats_new,
     'latest-versions': latest_versions,
     'download': download,
-    'pep': pep
 }
 
 
