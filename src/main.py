@@ -24,21 +24,19 @@ def whats_new(session):
     soup = get_soup(session, whats_new_url)
 
     sections_by_python = soup.select(
-        "#what-s-new-in-python div.toctree-wrapper li.toctree-l1"
+        '#what-s-new-in-python div.toctree-wrapper li.toctree-l1 > a'
     )
     results = [('Ссылка на статью', 'Заголовок', 'Редактор, автор')]
     warnings = []
 
-    for section in tqdm(sections_by_python, desc='Парсинг новостей'):
-        version_a_tag = find_tag(section, 'a')
-        href = version_a_tag['href']
-        version_link = urljoin(whats_new_url, href)
+    for a_tag in tqdm(sections_by_python, desc='Парсинг новостей'):
+        version_link = urljoin(whats_new_url, a_tag['href'])
         try:
-            get_soup(session, version_link)
-            h1 = find_tag(soup, 'h1')
-            dl = find_tag(soup, 'dl')
-            dl_text = dl.text.replace('\n', ' ')
-            results.append((version_link, h1.text, dl_text))
+            soup = get_soup(session, version_link)
+            title = find_tag(soup, 'h1').text.strip()
+            dl_tag = soup.find('dl')
+            dl_tag_text = dl_tag.text.replace('\n', ' ')
+            results.append((version_link, title, dl_tag_text))
         except ConnectionError as error:
             warnings.append(
                 {
