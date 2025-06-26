@@ -27,19 +27,28 @@ def whats_new(session):
         "#what-s-new-in-python div.toctree-wrapper li.toctree-l1"
     )
     results = [('Ссылка на статью', 'Заголовок', 'Редактор, автор')]
+    warnings = []
 
-    for section in tqdm(sections_by_python):
+    for section in tqdm(sections_by_python, desc='Парсинг новостей'):
         version_a_tag = find_tag(section, 'a')
         href = version_a_tag['href']
         version_link = urljoin(whats_new_url, href)
-        response = get_response(session, version_link)
-        if response is None:
-            continue
-        soup = BeautifulSoup(response.text, 'lxml')
-        h1 = find_tag(soup, 'h1')
-        dl = find_tag(soup, 'dl')
-        dl_text = dl.text.replace('\n', ' ')
-        results.append((version_link, h1.text, dl_text))
+        try:
+            get_soup(session, version_link)
+            h1 = find_tag(soup, 'h1')
+            dl = find_tag(soup, 'dl')
+            dl_text = dl.text.replace('\n', ' ')
+            results.append((version_link, h1.text, dl_text))
+        except ConnectionError as error:
+            warnings.append(
+                {
+                    'link': version_link,
+                    'error': error
+                    }
+                )
+    for warning in warnings:
+        logging.warning(warning)
+
     return results
 
 
