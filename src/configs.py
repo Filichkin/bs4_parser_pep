@@ -6,6 +6,7 @@ from constants import (
     DT_FORMAT,
     FILE_FORMAT,
     LOG_FORMAT,
+    LOGS_DIR,
     PRETTY_FORMAT
 )
 
@@ -35,7 +36,7 @@ def configure_argument_parser(available_modes):
 
 
 def configure_logging():
-    log_dir = BASE_DIR / 'logs'
+    log_dir = BASE_DIR / LOGS_DIR
     log_dir.mkdir(exist_ok=True)
     log_file = log_dir / 'parser.log'
     rotating_handler = RotatingFileHandler(
