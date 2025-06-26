@@ -9,10 +9,12 @@ from tqdm import tqdm
 from configs import configure_argument_parser, configure_logging
 from constants import (
     BASE_DIR,
+    DOWNLOAD_DIR,
     MAIN_DOC_URL,
     MAIN_PEP_URL,
     EXPECTED_STATUS
 )
+from exceptions import VersionsListNotFoundException
 from outputs import control_output
 from utils import find_tag, get_response, get_soup
 
@@ -21,12 +23,9 @@ def whats_new(session):
     whats_new_url = urljoin(MAIN_DOC_URL, 'whatsnew/')
     soup = get_soup(session, whats_new_url)
 
-    main_div = find_tag(
-        soup, 'section', attrs={'id': 'what-s-new-in-python'})
-    div_with_ul = find_tag(
-        main_div, 'div', attrs={'class': 'toctree-wrapper'})
-    sections_by_python = div_with_ul.find_all(
-        'li', attrs={'class': 'toctree-l1'})
+    sections_by_python = soup.select(
+        "#what-s-new-in-python div.toctree-wrapper li.toctree-l1"
+    )
     results = [('Ссылка на статью', 'Заголовок', 'Редактор, автор')]
 
     for section in tqdm(sections_by_python):
@@ -54,7 +53,7 @@ def latest_versions(session):
             a_tags = ul.find_all('a')
             break
     else:
-        raise Exception('Ничего не нашлось')
+        raise VersionsListNotFoundException()
     results = [('Ссылка на документацию', 'Версия', 'Статус')]
     pattern = r'Python (?P<version>\d\.\d+) \((?P<status>.*)\)'
 
@@ -73,14 +72,12 @@ def download(session):
     downloads_url = urljoin(MAIN_DOC_URL, 'download.html')
     soup = get_soup(session, downloads_url)
 
-    main_tag = find_tag(soup, 'div', {'role': 'main'})
-    table_tag = find_tag(main_tag, 'table', {'class': 'docutils'})
-    pdf_a4_tag = find_tag(
-        table_tag, 'a', {'href': re.compile(r'.+pdf-a4\.zip$')})
-    pdf_a4_link = pdf_a4_tag['href']
+    pdf_a4_link = soup.select_one(
+        'table.docutils a[href$="pdf-a4.zip"]'
+        )['href']
     archive_url = urljoin(downloads_url, pdf_a4_link)
     filename = archive_url.split('/')[-1]
-    downloads_dir = BASE_DIR / 'downloads'
+    downloads_dir = BASE_DIR / DOWNLOAD_DIR
     downloads_dir.mkdir(exist_ok=True)
     archive_path = downloads_dir / filename
     response = session.get(archive_url)
