@@ -40,7 +40,7 @@ def configure_logging():
     log_dir.mkdir(exist_ok=True)
     log_file = log_dir / 'parser.log'
     rotating_handler = RotatingFileHandler(
-        log_file, maxBytes=10 ** 6, backupCount=5
+        log_file, maxBytes=1024 * 1024, backupCount=5
     )
 
     logging.basicConfig(
