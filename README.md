@@ -26,6 +26,13 @@
 (venv) ...$ pip install -r requirements.txt
 ```
 
+Для проверки, запустите тесты из корневой директории:
+```
+(venv) .../bs4_parser_pep $ pytest
+```
+
+
+
 
 ## Доступные режимы:
 
